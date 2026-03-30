@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>PharmaStock Pro</title>
+
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#137333">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PharmaStock">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+<style>
+/* ═══════════════════════════════════════
+   TRANSIT CSS VARIABLES
+═══════════════════════════════════════ */
+:root {
+  --bg-dark-green:    #041409;
+  --card-dark-green:  #0d361c;
+  --text-bright-green:#20c057;
+  --search-bar-green: #137333;
+
+  --route-bg-purple:  #270f31;
+  --route-bg-blue:    #082136;
+  --route-bg-pink:    #360a22;
+
+  --route-text-purple:#cc78f0;
+  --route-text-blue:  #4da6ff;
+  --route-text-pink:  #ff4da6;
+
+  --accent-yellow:    #ffbb00;
+  --accent-red:       #ff3333;
+  --text-white:       #ffffff;
+  --text-grey:        #a0aab2;
+
+  /* Extra semantic tokens */
+  --border-subtle:    rgba(32,192,87,.12);
+  --border-medium:    rgba(32,192,87,.25);
+  --surface-glass:    rgba(13,54,28,.7);
+  --text-dim:         rgba(160,170,178,.55);
+}
+
+/* ═══════════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family: -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif;
+  background: var(--bg-dark-green);
+  color: var(--text-white);
+  min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══════════════════════════════════════
+   ANIMATIONS
+═══════════════════════════════════════ */
+@keyframes slideDown {
+  from { opacity:0; transform:translateY(-12px) scale(.97); }
+  to   { opacity:1; transform:translateY(0) scale(1); }
+}
+@keyframes rowIn {
+  from { opacity:0; transform:translateX(-10px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+@keyframes scanPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(32,192,87,.7); }
+  55%      { box-shadow: 0 0 0 12px rgba(32,192,87,0); }
+}
+@keyframes blink {
+  0%,100% { opacity:1; } 50% { opacity:.3; }
+}
+@keyframes toastIn {
+  from { opacity:0; transform:translateY(16px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes shake {
+  0%,100% { transform:translateX(0); }
+  20%     { transform:translateX(-5px); }
+  40%     { transform:translateX(5px); }
+  60%     { transform:translateX(-3px); }
+  80%     { transform:translateX(3px); }
+}
+@keyframes installSlide {
+  from { transform:translateY(100%); opacity:0; }
+  to   { transform:translateY(0); opacity:1; }
+}
+
+.card-in    { animation: slideDown .34s cubic-bezier(.175,.885,.32,1.275) both; }
+.row-in     { opacity:0; animation: rowIn .2s ease forwards; }
+.pulsing    { animation: scanPulse .65s ease; }
+.exp-blink  { animation: blink 1.4s ease infinite; }
+.shake-it   { animation: shake .4s ease; }
+
+/* ═══════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════ */
+.app-wrap   { max-width: 900px; margin: 0 auto; padding: 0 14px 80px; }
+
+/* ═══════════════════════════════════════
+   STICKY HEADER
+═══════════════════════════════════════ */
+.header {
+  position: sticky; top:0; z-index:40;
+  background: linear-gradient(180deg, var(--bg-dark-green) 70%, rgba(4,20,9,0));
+  padding: 16px 14px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.header-inner { max-width:900px; margin:0 auto; }
+
+.header-top {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:12px;
+}
+.logo-title {
+  font-size: 22px; font-weight: 900; letter-spacing:-.01em; line-height:1;
+  color: var(--text-white);
+}
+.logo-title span { color: var(--text-bright-green); }
+.logo-sub {
+  font-size: 9px; font-weight:700; letter-spacing:.18em;
+  color: var(--text-dim); margin-top:3px;
+  text-transform: uppercase;
+}
+.header-actions { display:flex; gap:8px; align-items:center; }
+
+/* Stats badge */
+.stats-badge {
+  display:none; font-size:10px; font-weight:700;
+  background: var(--card-dark-green); color: var(--text-grey);
+  border: 1px solid var(--border-subtle);
+  padding: 4px 10px; border-radius:20px;
+}
+/* Export button */
+.btn-export {
+  display:none; font-size:10px; font-weight:800; cursor:pointer;
+  background: var(--search-bar-green); color: var(--text-white);
+  border:none; padding: 6px 14px; border-radius:20px;
+  transition: filter .15s, transform .1s;
+}
+.btn-export:hover  { filter:brightness(1.15); }
+.btn-export:active { transform:scale(.94); }
+
+/* ═══════════════════════════════════════
+   SCAN BAR  (Transit "Where to?" style)
+═══════════════════════════════════════ */
+.scan-bar-wrap {
+  display:flex; gap:8px;
+}
+.scan-bar {
+  flex:1; display:flex; align-items:center; gap:10px;
+  background: var(--search-bar-green);
+  border-radius: 14px; padding: 10px 14px;
+  border: 1.5px solid transparent;
+  transition: border-color .2s, box-shadow .2s;
+  position:relative;
+}
+.scan-bar:focus-within {
+  border-color: var(--text-bright-green);
+  box-shadow: 0 0 0 3px rgba(32,192,87,.15);
+}
+.scan-icon { color: rgba(255,255,255,.7); flex-shrink:0; }
+.scan-input {
+  flex:1; background:none; border:none; outline:none;
+  font-size: 14px; font-weight:600;
+  color: var(--text-white); font-family:inherit;
+}
+.scan-input::placeholder { color: rgba(255,255,255,.55); }
+
+.mode-tag {
+  display:none; font-size:9px; font-weight:900;
+  background: rgba(0,0,0,.3); color: var(--accent-yellow);
+  padding: 2px 7px; border-radius:6px; letter-spacing:.05em;
+  flex-shrink:0;
+}
+.clear-btn {
+  display:none; background:none; border:none; cursor:pointer;
+  color:rgba(255,255,255,.45); font-size:18px; line-height:1;
+  flex-shrink:0; padding:0 2px;
+  transition: color .15s;
+}
+.clear-btn:hover { color:rgba(255,255,255,.85); }
+
+.btn-scan {
+  background: var(--text-bright-green); color: #041409;
+  font-size:12px; font-weight:900; letter-spacing:.06em;
+  border:none; border-radius:14px; padding: 10px 18px;
+  cursor:pointer; flex-shrink:0; font-family:inherit;
+  transition: filter .15s, transform .1s;
+  box-shadow: 0 4px 14px rgba(32,192,87,.35);
+}
+.btn-scan:hover  { filter:brightness(1.1); }
+.btn-scan:active { transform:scale(.93); }
+
+/* GS1 parsed strip */
+.gs1-strip {
+  display:none; margin-top:8px;
+  font-size:11px; font-weight:600; color:var(--text-grey);
+  flex-wrap:wrap; gap:6px;
+}
+.gs1-strip strong { color: var(--text-bright-green); }
+.gs1-dot { color: var(--border-medium); margin:0 2px; }
+
+/* Error bar */
+.err-bar {
+  display:none; margin-top:8px;
+  background: rgba(255,51,51,.1); border:1px solid rgba(255,51,51,.3);
+  border-radius:10px; padding:8px 12px;
+  font-size:11px; font-weight:700; color:#ff6666;
+  display:none; align-items:center; gap:7px;
+}
+
+/* Stats strip */
+.stats-strip {
+  display:none; margin-top:8px;
+  font-size:10px; font-weight:600; color:var(--text-dim);
+  flex-wrap:wrap; gap:12px;
+}
+.stats-strip strong { font-weight:800; }
+
+/* ═══════════════════════════════════════
+   RESULT CARD  (Transit route card style)
+═══════════════════════════════════════ */
+.result-card-wrap { margin: 12px 0; }
+
+.result-card {
+  border-radius:18px; overflow:hidden;
+  border: 1.5px solid var(--border-subtle);
+  animation: slideDown .34s cubic-bezier(.175,.885,.32,1.275) both;
+}
+
+/* Classification → route colour mapping */
+.rc-purple { background:var(--route-bg-purple); border-color:rgba(204,120,240,.2); }
+.rc-blue   { background:var(--route-bg-blue);   border-color:rgba(77,166,255,.2);  }
+.rc-pink   { background:var(--route-bg-pink);   border-color:rgba(255,77,166,.2);  }
+.rc-green  { background:var(--card-dark-green); border-color:var(--border-medium);  }
+.rc-yellow { background:#1a1400;                border-color:rgba(255,187,0,.2);    }
+.rc-red    { background:#1a0505;                border-color:rgba(255,51,51,.2);    }
+
+.rc-bar { height:3px; }
+.rc-bar-purple { background:var(--route-text-purple); }
+.rc-bar-blue   { background:var(--route-text-blue);   }
+.rc-bar-pink   { background:var(--route-text-pink);   }
+.rc-bar-green  { background:var(--text-bright-green); }
+.rc-bar-yellow { background:var(--accent-yellow);     }
+.rc-bar-red    { background:var(--accent-red);        }
+
+.rc-body { padding:14px; }
+
+/* RMS number badge — like Transit route number */
+.rms-badge {
+  border-radius:12px; padding:8px 12px;
+  text-align:center; flex-shrink:0; min-width:72px;
+}
+.rms-badge .rms-num {
+  font-size:20px; font-weight:900; line-height:1; color:var(--text-white);
+}
+.rms-badge .rms-mode {
+  font-size:8px; font-weight:800; letter-spacing:.06em;
+  color:rgba(255,255,255,.6); margin-top:4px;
+  background:rgba(0,0,0,.25); border-radius:4px; padding:2px 5px;
+}
+.rms-badge-purple { background: rgba(204,120,240,.2); border:1px solid rgba(204,120,240,.35); }
+.rms-badge-blue   { background: rgba(77,166,255,.2);  border:1px solid rgba(77,166,255,.35);  }
+.rms-badge-pink   { background: rgba(255,77,166,.2);  border:1px solid rgba(255,77,166,.35);  }
+.rms-badge-green  { background: rgba(32,192,87,.15);  border:1px solid rgba(32,192,87,.35);   }
+.rms-badge-yellow { background: rgba(255,187,0,.15);  border:1px solid rgba(255,187,0,.35);   }
+.rms-badge-red    { background: rgba(255,51,51,.15);  border:1px solid rgba(255,51,51,.35);   }
+
+.rc-name {
+  font-size:15px; font-weight:800; line-height:1.25;
+  color: var(--text-white); margin-bottom:4px;
+}
+.rc-sub {
+  font-size:11px; font-weight:600; color:var(--text-grey);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.rc-close {
+  background:none; border:none; cursor:pointer;
+  color:rgba(255,255,255,.25); font-size:22px; line-height:1;
+  flex-shrink:0; padding:0;
+  transition:color .15s;
+}
+.rc-close:hover { color:rgba(255,255,255,.7); }
+
+/* Detail grid */
+.rc-grid {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:7px; margin-top:12px;
+}
+@media(min-width:540px){ .rc-grid{ grid-template-columns:1fr 1fr 1fr 1fr; } }
+.rc-cell {
+  background:rgba(0,0,0,.25); border-radius:10px; padding:8px 10px;
+}
+.rc-cell-label {
+  font-size:8px; font-weight:800; letter-spacing:.1em;
+  color:var(--text-dim); text-transform:uppercase; margin-bottom:3px;
+}
+.rc-cell-val {
+  font-size:12px; font-weight:700; color:var(--text-white);
+  word-break:break-all;
+}
+.rc-cell-mono { font-family:monospace; font-size:11px; }
+.rc-cell-span { grid-column:span 2; }
+
+/* GS1 chips */
+.gs1-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.gs1-chip {
+  display:inline-flex; align-items:center; gap:5px;
+  background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.08);
+  border-radius:8px; padding:4px 9px;
+}
+.gs1-chip-label { font-size:8px; font-weight:800; color:var(--text-dim); letter-spacing:.08em; }
+.gs1-chip-val   { font-size:11px; font-weight:700; color:var(--text-white); font-family:monospace; }
+.gs1-chip-batch { border-color:rgba(77,166,255,.3); background:rgba(77,166,255,.08); }
+.gs1-chip-batch .gs1-chip-val { color:var(--route-text-blue); }
+
+/* Expiry pill */
+.exp-pill {
+  display:flex; align-items:center; gap:8px;
+  border-radius:10px; padding:7px 12px; margin-top:8px;
+}
+.exp-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.exp-label { font-size:12px; font-weight:800; }
+.exp-sub   { font-size:10px; font-weight:700; opacity:.65; margin-left:4px; }
+
+.exp-ok      { background:rgba(32,192,87,.1);  border:1px solid rgba(32,192,87,.22); }
+.exp-ok      .exp-label { color:var(--text-bright-green); }
+.exp-ok      .exp-dot   { background:var(--text-bright-green); }
+.exp-soon    { background:rgba(255,187,0,.08); border:1px solid rgba(255,187,0,.25); }
+.exp-soon    .exp-label { color:var(--accent-yellow); }
+.exp-soon    .exp-dot   { background:var(--accent-yellow); }
+.exp-warn    { background:rgba(255,127,0,.08); border:1px solid rgba(255,127,0,.25); }
+.exp-warn    .exp-label { color:#ff9500; }
+.exp-warn    .exp-dot   { background:#ff9500; }
+.exp-expired { background:rgba(255,51,51,.1);  border:1px solid rgba(255,51,51,.3); }
+.exp-expired .exp-label { color:var(--accent-red); }
+.exp-expired .exp-dot   { background:var(--accent-red); }
+
+/* Return banner */
+.return-pill {
+  display:flex; align-items:center; gap:8px;
+  border-radius:10px; padding:7px 12px; margin-top:7px;
+  font-size:12px; font-weight:800;
+}
+.return-yes { background:rgba(32,192,87,.08); border:1px solid rgba(32,192,87,.2); color:var(--text-bright-green); }
+.return-no  { background:rgba(255,51,51,.08); border:1px solid rgba(255,51,51,.2); color:var(--accent-red); }
+.return-sub { font-size:10px; font-weight:600; opacity:.65; margin-left:4px; color:inherit; }
+
+/* Not found */
+.not-found-label { color:var(--accent-red); font-size:14px; font-weight:800; }
+
+/* ═══════════════════════════════════════
+   EMPTY STATE
+═══════════════════════════════════════ */
+.empty-state {
+  background:var(--card-dark-green);
+  border:1px solid var(--border-subtle);
+  border-radius:20px; padding:36px 20px;
+  text-align:center; margin-top:12px;
+}
+.empty-icon { font-size:44px; opacity:.2; margin-bottom:12px; }
+.empty-title { font-size:16px; font-weight:800; color:var(--text-white); margin-bottom:6px; }
+.empty-sub {
+  font-size:12px; color:var(--text-grey); line-height:1.7; margin-bottom:18px;
+}
+.empty-sub code {
+  background:rgba(32,192,87,.12); color:var(--text-bright-green);
+  padding:1px 5px; border-radius:4px; font-size:11px;
+}
+
+/* Feature pills */
+.feature-pills { display:flex; flex-wrap:wrap; justify-content:center; gap:7px; margin-bottom:20px; }
+.feature-pill {
+  font-size:10px; font-weight:700; padding:5px 11px; border-radius:20px;
+}
+.fp-green  { background:rgba(32,192,87,.1);  color:var(--text-bright-green); border:1px solid rgba(32,192,87,.2); }
+.fp-blue   { background:rgba(77,166,255,.1); color:var(--route-text-blue);   border:1px solid rgba(77,166,255,.2); }
+.fp-purple { background:rgba(204,120,240,.1);color:var(--route-text-purple); border:1px solid rgba(204,120,240,.2); }
+.fp-yellow { background:rgba(255,187,0,.1);  color:var(--accent-yellow);     border:1px solid rgba(255,187,0,.2); }
+
+/* Demo buttons */
+.demo-label { font-size:9px; font-weight:800; letter-spacing:.14em; color:var(--text-dim); margin-bottom:8px; }
+.demo-btns  { display:flex; flex-wrap:wrap; justify-content:center; gap:7px; }
+.demo-btn {
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+  border-radius:10px; padding:8px 13px; cursor:pointer;
+  font-family:inherit; text-align:left; flex-shrink:0;
+  transition: background .15s, border-color .15s, transform .1s;
+}
+.demo-btn:hover  { background:rgba(32,192,87,.08); border-color:rgba(32,192,87,.3); }
+.demo-btn:active { transform:scale(.93); }
+.demo-btn-label { font-size:9px; font-weight:800; color:var(--text-bright-green); letter-spacing:.05em; }
+.demo-btn-hint  { font-size:9px; font-weight:600; color:var(--text-dim); margin-top:2px; }
+
+/* GS1 AI legend */
+.ai-legend {
+  margin-top:20px; background:rgba(0,0,0,.3);
+  border:1px solid var(--border-subtle); border-radius:14px; padding:14px 16px; text-align:left;
+}
+.ai-legend-title {
+  font-size:9px; font-weight:800; letter-spacing:.16em;
+  color:var(--text-dim); text-transform:uppercase; margin-bottom:10px;
+}
+.ai-legend-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.ai-row { display:flex; gap:8px; align-items:center; font-size:11px; }
+.ai-code { color:var(--text-bright-green); font-weight:800; font-family:monospace; min-width:32px; }
+.ai-desc { color:var(--text-grey); font-weight:600; }
+
+/* ═══════════════════════════════════════
+   SCAN TABLE  (Transit list style)
+═══════════════════════════════════════ */
+.table-wrap {
+  display:none;
+  background:var(--card-dark-green);
+  border:1px solid var(--border-subtle);
+  border-radius:18px; overflow:hidden; margin-top:12px;
+  overflow-x:auto;
+}
+table { width:100%; text-align:left; border-collapse:collapse; min-width:820px; }
+thead {
+  background: rgba(0,0,0,.4);
+  position:sticky; top:0;
+  border-bottom:1px solid var(--border-subtle);
+}
+th {
+  padding:10px 12px; font-size:9px; font-weight:800;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--text-dim);
+  white-space:nowrap;
+}
+tbody tr {
+  border-bottom:1px solid rgba(255,255,255,.03);
+  cursor:pointer; transition:background .15s;
+}
+tbody tr:last-child { border-bottom:none; }
+tbody tr:hover { background:rgba(32,192,87,.05); }
+td { padding:10px 12px; vertical-align:middle; }
+
+.td-num    { font-size:10px; font-family:monospace; color:var(--text-dim); }
+.td-desc   { font-size:12px; font-weight:700; color:var(--text-white); line-height:1.3; }
+.td-miss   { font-size:10px; font-weight:700; color:var(--accent-red); }
+.td-raw    { font-size:9px; font-family:monospace; color:var(--text-dim); margin-top:2px; }
+.td-dash   { color:rgba(255,255,255,.1); font-size:12px; }
+.td-mono   { font-family:monospace; font-size:10px; color:var(--text-grey); }
+
+/* RMS badge in table */
+.tbl-rms {
+  font-size:10px; font-weight:800; padding:2px 9px; border-radius:20px;
+  white-space:nowrap;
+}
+
+/* Expiry in table */
+.tbl-exp     { font-size:10px; font-weight:800; }
+.tbl-exp-sub { font-size:9px; font-weight:700; opacity:.6; }
+.tbl-ok      { color:var(--text-bright-green); }
+.tbl-warn    { color:var(--accent-yellow); }
+.tbl-exp-red { color:var(--accent-red); }
+
+/* Return in table */
+.tbl-ret {
+  font-size:9px; font-weight:800; padding:2px 8px; border-radius:20px; white-space:nowrap;
+}
+.tbl-ret-yes { background:rgba(32,192,87,.12); color:var(--text-bright-green); }
+.tbl-ret-no  { background:rgba(255,51,51,.1);  color:var(--accent-red); }
+
+/* ═══════════════════════════════════════
+   TOAST & INSTALL BANNER
+═══════════════════════════════════════ */
+.toast {
+  display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+  z-index:60; font-size:12px; font-weight:700;
+  padding:9px 20px; border-radius:30px; white-space:nowrap;
+  animation:toastIn .26s ease;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);
+}
+.toast-ok  { background:var(--text-bright-green); color:#041409; }
+.toast-err { background:var(--accent-red); color:#fff; }
+
+.install-banner {
+  display:none; position:fixed; bottom:16px; left:12px; right:12px; z-index:50;
+  background:var(--card-dark-green);
+  border:1.5px solid var(--border-medium);
+  border-radius:18px; padding:14px 14px;
+  box-shadow:0 8px 32px rgba(0,0,0,.6);
+  animation:installSlide .3s ease;
+  align-items:center; gap:12px;
+}
+.install-icon { width:42px; height:42px; border-radius:12px; flex-shrink:0; }
+.install-text-title { font-size:13px; font-weight:800; color:var(--text-white); }
+.install-text-sub   { font-size:11px; color:var(--text-grey); font-weight:600; margin-top:2px; }
+.install-text       { flex:1; }
+.btn-install {
+  background:var(--text-bright-green); color:#041409;
+  font-size:11px; font-weight:800; border:none; border-radius:10px;
+  padding:7px 14px; cursor:pointer; flex-shrink:0; font-family:inherit;
+}
+.btn-dismiss {
+  background:none; border:none; cursor:pointer;
+  color:rgba(255,255,255,.3); font-size:20px; flex-shrink:0;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ TOAST ═══════════ -->
+<div id="toast" class="toast"></div>
+
+<!-- ═══════════ INSTALL BANNER ═══════════ -->
+<div id="installBanner" class="install-banner">
+  <img src="/icons/icon-192.png" class="install-icon" alt="">
+  <div class="install-text">
+    <div class="install-text-title">Install PharmaStock Pro</div>
+    <div class="install-text-sub">Works offline · Add to home screen</div>
+  </div>
+  <button id="installBtn" class="btn-install">Install</button>
+  <button class="btn-dismiss" onclick="document.getElementById('installBanner').style.display='none'">×</button>
+</div>
+
+<!-- ═══════════ HEADER ═══════════ -->
+<div class="header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div>
+        <div class="logo-title">Pharma<span>Stock</span> Pro</div>
+        <div class="logo-sub">GS1 · EAN-13 · RMS · Offline Ready</div>
+      </div>
+      <div class="header-actions">
+        <div id="statsBadge" class="stats-badge"></div>
+        <button id="exportBtn" class="btn-export" onclick="exportCSV()">↓ CSV</button>
+      </div>
+    </div>
+
+    <!-- Scan bar -->
+    <div class="scan-bar-wrap">
+      <div id="scanWrap" class="scan-bar">
+        <svg class="scan-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path stroke-width="2" stroke-linecap="round"
+            d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+          <line x1="7"  y1="12" x2="7"  y2="12.01" stroke-width="3"/>
+          <line x1="10" y1="10" x2="10" y2="14" stroke-width="1.5"/>
+          <line x1="13" y1="9"  x2="13" y2="15" stroke-width="2"/>
+          <line x1="16" y1="11" x2="16" y2="13" stroke-width="1.5"/>
+        </svg>
+        <input id="scanInput" class="scan-input" type="text" inputmode="text" autofocus
+          placeholder="Scan barcode · GS1 string · RMS code…"
+          onkeydown="if(event.key==='Enter') processScan()">
+        <span id="modeTag" class="mode-tag"></span>
+        <button id="clearBtn" class="clear-btn" onclick="clearInput()">×</button>
+      </div>
+      <button id="scanBtn" class="btn-scan" onclick="processScan()">SCAN</button>
+    </div>
+
+    <!-- GS1 strip -->
+    <div id="gs1Strip" class="gs1-strip" style="display:none;display:flex;"></div>
+
+    <!-- Error -->
+    <div id="errBar" class="err-bar" style="display:none;">
+      <span>⚠</span><span id="errMsg"></span>
+    </div>
+
+    <!-- Stats -->
+    <div id="statsStrip" class="stats-strip" style="display:none;display:flex;"></div>
+  </div>
+</div>
+
+<!-- ═══════════ BODY ═══════════ -->
+<div class="app-wrap">
+
+  <!-- Result card -->
+  <div id="resultCard" class="result-card-wrap" style="display:none;"></div>
+
+  <!-- Empty state -->
+  <div id="emptyState" class="empty-state">
+    <div class="empty-icon">⊡</div>
+    <div class="empty-title">Ready to scan</div>
+    <div class="empty-sub">
+      Supports EAN-13 · GS1 parentheses <code>(01)(17)(10)</code> · GS1 raw · RMS code<br>
+      Expiry, batch &amp; serial auto-parsed — master lookup on every scan
+    </div>
+
+    <div class="feature-pills">
+      <span class="feature-pill fp-green">Auto expiry (17)</span>
+      <span class="feature-pill fp-blue">Auto batch (10)</span>
+      <span class="feature-pill fp-purple">Return status</span>
+      <span class="feature-pill fp-yellow">Offline ready</span>
+    </div>
+
+    <div class="demo-label">— TRY A DEMO SCAN —</div>
+    <div class="demo-btns">
+      <button class="demo-btn" onclick="demo('4008500109427')">
+        <div class="demo-btn-label">EAN-13</div>
+        <div class="demo-btn-hint">Bepanthen Ointment</div>
+      </button>
+      <button class="demo-btn" onclick="demo('(01)06291100080069(17)261231(10)LOT2024B')">
+        <div class="demo-btn-label">GS1 Parentheses</div>
+        <div class="demo-btn-hint">Adol + expiry + batch</div>
+      </button>
+      <button class="demo-btn" onclick="demo('(01)02961544500143(17)230601(10)EXPIREDLOT')">
+        <div class="demo-btn-label">Expired Product</div>
+        <div class="demo-btn-hint">Panadol Night</div>
+      </button>
+      <button class="demo-btn" onclick="demo('VIT-006')">
+        <div class="demo-btn-label">RMS Code</div>
+        <div class="demo-btn-hint">Centrum Adults</div>
+      </button>
+      <button class="demo-btn" onclick="demo('(01)06154000305478(17)270301(10)B2025001(21)SN98765')">
+        <div class="demo-btn-label">Full GS1</div>
+        <div class="demo-btn-hint">Clarityne + serial</div>
+      </button>
+    </div>
+
+    <div class="ai-legend">
+      <div class="ai-legend-title">GS1 Application Identifiers Parsed</div>
+      <div class="ai-legend-grid">
+        <div class="ai-row"><span class="ai-code">(01)</span><span class="ai-desc">GTIN — 14 digits</span></div>
+        <div class="ai-row"><span class="ai-code">(17)</span><span class="ai-desc">Expiry YYMMDD</span></div>
+        <div class="ai-row"><span class="ai-code">(10)</span><span class="ai-desc">Batch / Lot number</span></div>
+        <div class="ai-row"><span class="ai-code">(21)</span><span class="ai-desc">Serial number</span></div>
+        <div class="ai-row"><span class="ai-code">(11)</span><span class="ai-desc">Production date</span></div>
+        <div class="ai-row"><span class="ai-code">(30)</span><span class="ai-desc">Quantity</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scan history table -->
+  <div id="tableWrap" class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Description</th>
+          <th>RMS</th>
+          <th>GTIN</th>
+          <th>Brand</th>
+          <th>Classification</th>
+          <th>Supplier</th>
+          <th>Expiry</th>
+          <th>Batch</th>
+          <th>Return</th>
+        </tr>
+      </thead>
+      <tbody id="scanBody"></tbody>
+    </table>
+  </div>
+
+</div><!-- /app-wrap -->
+
+<script>
+/* ═══════════════════════════════════════
+   MASTER DATABASE
+   BARCODE | RMS | GTIN | DESCRIPTION | BRAND | CLASSIFICATION | SUPPLIER | RETURN STATUS
+═══════════════════════════════════════ */
+const MASTER = [
+  {barcode:"4008500109427", rms:"DRM-001", gtin:"04008500109427", description:"BEPANTHEN OINTMENT 30G",         brand:"BEPANTHEN",  classification:"Dermatology", supplier:"Bayer Consumer Health",  returnStatus:"Returnable"},
+  {barcode:"3574661298658", rms:"SKN-002", gtin:"03574661298658", description:"AVEENO SKIN RELIEF OIL 300ML",   brand:"AVEENO",     classification:"Dermatology", supplier:"J&J Consumer Inc",       returnStatus:"Non-Returnable"},
+  {barcode:"6291100080069", rms:"ANL-003", gtin:"06291100080069", description:"ADOL 500MG CAPLETS 24S",         brand:"ADOL",       classification:"Analgesics",  supplier:"Julphar Gulf Pharma",    returnStatus:"Returnable"},
+  {barcode:"6281086010259", rms:"ANL-004", gtin:"06281086010259", description:"SAPOFEN 400MG TABS 20S",         brand:"SAPOFEN",    classification:"Analgesics",  supplier:"Al Jazeera Pharma",      returnStatus:"Returnable"},
+  {barcode:"2961544500143", rms:"ANL-005", gtin:"02961544500143", description:"PANADOL NIGHT TABLETS 24S",      brand:"PANADOL",    classification:"Analgesics",  supplier:"Haleon FZE",             returnStatus:"Non-Returnable"},
+  {barcode:"5000168014939", rms:"VIT-006", gtin:"05000168014939", description:"CENTRUM ADVANCE ADULTS 30S",     brand:"CENTRUM",    classification:"Vitamins",    supplier:"Pfizer Consumer Health", returnStatus:"Returnable"},
+  {barcode:"4005808156054", rms:"BBY-007", gtin:"04005808156054", description:"NIVEA BABY SOFT CREAM 200ML",    brand:"NIVEA BABY", classification:"Baby Care",   supplier:"Beiersdorf AG",          returnStatus:"Non-Returnable"},
+  {barcode:"6154000305478", rms:"ALG-008", gtin:"06154000305478", description:"CLARITYNE 10MG TABS 10S",        brand:"CLARITYNE",  classification:"Allergy",     supplier:"Organon UAE LLC",        returnStatus:"Returnable"},
+  {barcode:"4007920003015", rms:"SKN-009", gtin:"04007920003015", description:"EUCERIN INTENSIVE LOTION 250ML", brand:"EUCERIN",    classification:"Dermatology", supplier:"Beiersdorf Medical",     returnStatus:"Returnable"},
+  {barcode:"7310100054495", rms:"OTC-010", gtin:"07310100054495", description:"NICORETTE GUM 2MG 30S",          brand:"NICORETTE",  classification:"OTC",         supplier:"Kenvue ME FZE",          returnStatus:"Non-Returnable"},
+];
+
+/* ═══════════════════════════════════════
+   COLOUR MAP: classification → Transit route colour
+═══════════════════════════════════════ */
+const CLR = {
+  Dermatology: {card:'rc-blue',   bar:'rc-bar-blue',   badge:'rms-badge-blue',   rmsClr:'var(--route-text-blue)',   tblBg:'rgba(77,166,255,.12)',  tblClr:'var(--route-text-blue)'},
+  Analgesics:  {card:'rc-purple', bar:'rc-bar-purple', badge:'rms-badge-purple', rmsClr:'var(--route-text-purple)', tblBg:'rgba(204,120,240,.12)', tblClr:'var(--route-text-purple)'},
+  Vitamins:    {card:'rc-green',  bar:'rc-bar-green',  badge:'rms-badge-green',  rmsClr:'var(--text-bright-green)', tblBg:'rgba(32,192,87,.12)',   tblClr:'var(--text-bright-green)'},
+  'Baby Care': {card:'rc-pink',   bar:'rc-bar-pink',   badge:'rms-badge-pink',   rmsClr:'var(--route-text-pink)',   tblBg:'rgba(255,77,166,.12)',  tblClr:'var(--route-text-pink)'},
+  Allergy:     {card:'rc-blue',   bar:'rc-bar-blue',   badge:'rms-badge-blue',   rmsClr:'var(--route-text-blue)',   tblBg:'rgba(77,166,255,.12)',  tblClr:'var(--route-text-blue)'},
+  OTC:         {card:'rc-yellow', bar:'rc-bar-yellow', badge:'rms-badge-yellow', rmsClr:'var(--accent-yellow)',     tblBg:'rgba(255,187,0,.12)',   tblClr:'var(--accent-yellow)'},
+  default:     {card:'rc-green',  bar:'rc-bar-green',  badge:'rms-badge-green',  rmsClr:'var(--text-bright-green)', tblBg:'rgba(32,192,87,.12)',   tblClr:'var(--text-bright-green)'},
+};
+
+/* ═══════════════════════════════════════
+   GS1 STRICT PARSER
+═══════════════════════════════════════ */
+const AI_DEFS = {
+  '00':{n:'sscc',      l:18,f:true },
+  '01':{n:'gtin',      l:14,f:true },
+  '02':{n:'content',   l:14,f:true },
+  '10':{n:'batch',     l:20,f:false},
+  '11':{n:'prodDate',  l:6, f:true },
+  '12':{n:'dueDate',   l:6, f:true },
+  '13':{n:'packDate',  l:6, f:true },
+  '15':{n:'bestBefore',l:6, f:true },
+  '17':{n:'expiry',    l:6, f:true },
+  '20':{n:'variant',   l:2, f:true },
+  '21':{n:'serial',    l:20,f:false},
+  '30':{n:'qty',       l:8, f:false},
+  '37':{n:'qty',       l:8, f:false},
+};
+
+function fmtDate(raw) {
+  if (!raw||raw.length!==6) return null;
+  const yy=parseInt(raw.slice(0,2)), mm=raw.slice(2,4), dd=raw.slice(4,6);
+  const yr=yy>50?1900+yy:2000+yy, day=dd==='00'?'01':dd;
+  return {disp:`${day}/${mm}/${yr}`, date:new Date(yr,parseInt(mm)-1,parseInt(day))};
+}
+function applyAI(res,ai,raw) {
+  const def=AI_DEFS[ai]; if(!def) return;
+  const v=raw.trim();
+  switch(def.n){
+    case 'gtin':    res.gtin=v; break;
+    case 'batch':   res.batch=v; break;
+    case 'serial':  res.serial=v; break;
+    case 'qty':     res.qty=v; break;
+    case 'expiry': case 'bestBefore': case 'dueDate': {
+      const d=fmtDate(v); if(d){res.expiry=d.disp;res.expiryDate=d.date;} break;
+    }
+    case 'prodDate': case 'packDate': {
+      const d=fmtDate(v); if(d) res.prodDate=d.disp; break;
+    }
+    default: if(!res[def.n]) res[def.n]=v;
+  }
+}
+function parseSegment(seg,res) {
+  let pos=0;
+  while(pos<seg.length){
+    let hit=false;
+    for(const al of [3,2]){
+      if(pos+al>seg.length) continue;
+      const ai=seg.slice(pos,pos+al), def=AI_DEFS[ai]; if(!def) continue;
+      if(def.f){ const e=pos+al+def.l; if(e<=seg.length){applyAI(res,ai,seg.slice(pos+al,e));pos=e;hit=true;break;} }
+      else { applyAI(res,ai,seg.slice(pos+al,pos+al+def.l)); pos=seg.length; hit=true; break; }
+    }
+    if(!hit) break;
+  }
+}
+function parseGS1(raw) {
+  if(!raw?.trim()) return {};
+  const res={}, s=raw.trim();
+  if(/\(\d{2,3}\)/.test(s)){
+    const re=/\((\d{2,3})\)([^(]*)/g; let m;
+    while((m=re.exec(s))!==null) applyAI(res,m[1],m[2].replace(/[\x1d\n\r]/g,''));
+    res._mode='GS1'; return res;
+  }
+  if(s.includes('\x1d')){
+    s.split('\x1d').filter(Boolean).forEach(g=>parseSegment(g,res));
+    if(Object.keys(res).length){res._mode='GS1';return res;}
+    return {rmsEntry:s.replace(/\x1d/g,'')};
+  }
+  parseSegment(s,res);
+  if(Object.keys(res).length){res._mode='GS1';return res;}
+  const c=s.replace(/\s/g,'');
+  if(/^\d{14}$/.test(c)) return {gtin:c,_mode:'GTIN'};
+  if(/^\d{13}$/.test(c)) return {gtin:'0'+c,_mode:'EAN-13'};
+  if(/^\d{8,12}$/.test(c)) return {gtin:c,_mode:'EAN'};
+  return {rmsEntry:c,_mode:'RMS'};
+}
+
+function normGTIN(g){return (g||'').replace(/^0+/,'')||g;}
+function lookupProduct(parsed){
+  if(parsed.gtin){const n=normGTIN(parsed.gtin);return MASTER.find(p=>normGTIN(p.gtin)===n||normGTIN(p.barcode)===n)||null;}
+  if(parsed.rmsEntry) return MASTER.find(p=>p.rms.toUpperCase()===parsed.rmsEntry.toUpperCase())||null;
+  return null;
+}
+
+function expStatus(date){
+  if(!date) return null;
+  const days=Math.ceil((date-Date.now())/86400000);
+  if(days<0)    return {cls:'exp-expired',dot:'var(--accent-red)',         label:'EXPIRED',           sub:'',              blink:true,  days, tblCls:'tbl-exp-red'};
+  if(days<=90)  return {cls:'exp-warn',   dot:'#ff9500',                   label:`${parsed?.expiry||''}`,sub:`${days}d left`,blink:false, days, tblCls:'tbl-warn'};
+  if(days<=180) return {cls:'exp-soon',   dot:'var(--accent-yellow)',      label:`${parsed?.expiry||''}`,sub:`~${Math.ceil(days/30)}mo`,blink:false,days,tblCls:'tbl-warn'};
+  return         {cls:'exp-ok',    dot:'var(--text-bright-green)',  label:`${parsed?.expiry||''}`,sub:`~${Math.ceil(days/30)}mo`,blink:false,days,tblCls:'tbl-ok'};
+}
+
+/* ═══════════════════════════════════════
+   STATE
+═══════════════════════════════════════ */
+let scans=[];
+
+/* ═══════════════════════════════════════
+   PROCESS SCAN
+═══════════════════════════════════════ */
+function processScan(override){
+  const raw=(override!==undefined?override:document.getElementById('scanInput').value).trim();
+  if(!raw){document.getElementById('scanWrap').classList.add('shake-it');setTimeout(()=>document.getElementById('scanWrap').classList.remove('shake-it'),450);return;}
+  const parsed=parseGS1(raw), product=lookupProduct(parsed);
+  const rec={id:Date.now(),ts:Date.now(),raw,parsed,product};
+  scans.unshift(rec);
+  document.getElementById('scanInput').value='';
+  document.getElementById('clearBtn').style.display='none';
+  const btn=document.getElementById('scanBtn');
+  btn.classList.add('pulsing'); setTimeout(()=>btn.classList.remove('pulsing'),700);
+  renderCard(rec); renderGS1Strip(parsed); renderTable(); renderStats();
+  if(!product) showErr(`"${raw.slice(0,30)}"${raw.length>30?'…':''} — not found in master`);
+  else          clearErr();
+  setTimeout(()=>document.getElementById('scanInput').focus(),60);
+}
+function demo(v){processScan(v);}
+function clearInput(){
+  document.getElementById('scanInput').value='';
+  document.getElementById('clearBtn').style.display='none';
+  document.getElementById('scanInput').focus();
+}
+document.getElementById('scanInput').addEventListener('input',function(){
+  document.getElementById('clearBtn').style.display=this.value?'block':'none';
+});
+
+/* ═══════════════════════════════════════
+   RENDER CARD
+═══════════════════════════════════════ */
+function renderCard(rec){
+  const el=document.getElementById('resultCard');
+  const {product,parsed}=rec;
+  const C=CLR[product?.classification]||CLR.default;
+  const exp=expStatus(parsed.expiryDate);
+  const isReturn=product?.returnStatus==='Returnable';
+
+  // GS1 chips
+  const chips=[
+    parsed.gtin     && `<div class="gs1-chip"><span class="gs1-chip-label">GTIN</span><span class="gs1-chip-val">${parsed.gtin}</span></div>`,
+    parsed.batch    && `<div class="gs1-chip gs1-chip-batch"><span class="gs1-chip-label">BATCH</span><span class="gs1-chip-val">${parsed.batch}</span></div>`,
+    parsed.serial   && `<div class="gs1-chip"><span class="gs1-chip-label">SERIAL</span><span class="gs1-chip-val">${parsed.serial}</span></div>`,
+    parsed.prodDate && `<div class="gs1-chip"><span class="gs1-chip-label">PROD</span><span class="gs1-chip-val">${parsed.prodDate}</span></div>`,
+    parsed.qty      && `<div class="gs1-chip"><span class="gs1-chip-label">QTY</span><span class="gs1-chip-val">${parsed.qty}</span></div>`,
+  ].filter(Boolean).join('');
+
+  // Expiry pill
+  let expPill='';
+  if(parsed.expiry && exp){
+    expPill=`<div class="exp-pill ${exp.cls}">
+      <div class="exp-dot ${exp.blink?'exp-blink':''}" style="background:${exp.dot}"></div>
+      <span class="exp-label ${exp.blink?'exp-blink':''}">EXPIRY: ${parsed.expiry}</span>
+      ${exp.days<0?'':'<span class="exp-sub">'+Math.ceil(Math.abs(exp.days)/30?Math.ceil(Math.abs(exp.days))+'d':Math.ceil(Math.abs(exp.days)/30)+'mo')+'</span>'}
+    </div>`;
+  }
+
+  el.innerHTML=`
+  <div class="result-card ${C.card}">
+    <div class="rc-bar ${C.bar}"></div>
+    <div class="rc-body">
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div class="rms-badge ${C.badge}">
+          <div class="rms-num" style="color:${C.rmsClr}">${product?.rms||'???'}</div>
+          <div class="rms-mode">${parsed._mode||'SCAN'}</div>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div class="rc-name">${product?product.description:`<span class="not-found-label">⚠ Not in master</span>`}</div>
+          <div class="rc-sub">${product?`${product.brand} · ${product.supplier}`:rec.raw.slice(0,42)}</div>
+        </div>
+        <button class="rc-close" onclick="document.getElementById('resultCard').style.display='none'">×</button>
+      </div>
+
+      ${product?`
+      <div class="rc-grid">
+        <div class="rc-cell">
+          <div class="rc-cell-label">GTIN</div>
+          <div class="rc-cell-val rc-cell-mono">${product.gtin}</div>
+        </div>
+        <div class="rc-cell">
+          <div class="rc-cell-label">Classification</div>
+          <div class="rc-cell-val">${product.classification}</div>
+        </div>
+        <div class="rc-cell rc-cell-span">
+          <div class="rc-cell-label">Supplier</div>
+          <div class="rc-cell-val">${product.supplier}</div>
+        </div>
+      </div>`:''}
+
+      ${chips?`<div class="gs1-chips">${chips}</div>`:''}
+      ${expPill}
+
+      ${product?`
+      <div class="return-pill ${isReturn?'return-yes':'return-no'}">
+        <span>${isReturn?'↩':'⊘'}</span>
+        <span>${product.returnStatus.toUpperCase()}</span>
+        ${!isReturn?'<span class="return-sub">— Do not accept returns</span>':''}
+      </div>`:''}
+    </div>
+  </div>`;
+  el.style.display='block';
+  el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+/* ═══════════════════════════════════════
+   GS1 STRIP
+═══════════════════════════════════════ */
+function renderGS1Strip(parsed){
+  const row=document.getElementById('gs1Strip');
+  const tag=document.getElementById('modeTag');
+  if(parsed._mode){tag.textContent=parsed._mode;tag.style.display='inline-block';}
+  else tag.style.display='none';
+  const parts=[
+    parsed.gtin     && `GTIN: <strong>${parsed.gtin}</strong>`,
+    parsed.expiry   && `Expiry: <strong>${parsed.expiry}</strong>`,
+    parsed.batch    && `Batch: <strong>${parsed.batch}</strong>`,
+    parsed.serial   && `Serial: <strong>${parsed.serial}</strong>`,
+    parsed.prodDate && `Prod: <strong>${parsed.prodDate}</strong>`,
+  ].filter(Boolean);
+  if(!parts.length){row.style.display='none';return;}
+  row.style.display='flex';
+  row.innerHTML=parts.map((p,i)=>`<span>${p}</span>${i<parts.length-1?'<span class="gs1-dot">·</span>':''}`).join('');
+}
+
+/* ═══════════════════════════════════════
+   TABLE
+═══════════════════════════════════════ */
+function renderTable(){
+  const empty=document.getElementById('emptyState');
+  const wrap=document.getElementById('tableWrap');
+  const body=document.getElementById('scanBody');
+  if(!scans.length){empty.style.display='block';wrap.style.display='none';return;}
+  empty.style.display='none'; wrap.style.display='block';
+
+  body.innerHTML=scans.slice(0,200).map((rec,i)=>{
+    const {product,parsed}=rec;
+    const exp=expStatus(parsed.expiryDate);
+    const C=CLR[product?.classification]||CLR.default;
+    const isReturn=product?.returnStatus==='Returnable';
+    const days=exp?.days;
+    const expTblCls= days===undefined?'': days<0?'tbl-exp-red': days<=90?'tbl-warn':'tbl-ok';
+
+    return `<tr class="row-in" style="animation-delay:${Math.min(i,10)*18}ms" onclick="openCard(${rec.id})">
+      <td class="td-num">${String(scans.length-i).padStart(3,'0')}</td>
+      <td>
+        ${product
+          ? `<div class="td-desc">${product.description}</div>`
+          : `<div class="td-miss">⚠ Not found</div><div class="td-raw">${rec.raw.slice(0,22)}</div>`}
+      </td>
+      <td>
+        ${product
+          ? `<span class="tbl-rms" style="background:${C.tblBg};color:${C.tblClr}">${product.rms}</span>`
+          : `<span class="td-dash">—</span>`}
+      </td>
+      <td class="td-mono">${product?.gtin||parsed.gtin||'<span class="td-dash">—</span>'}</td>
+      <td style="font-size:12px;font-weight:600;color:var(--text-grey)">${product?.brand||'<span class="td-dash">—</span>'}</td>
+      <td style="font-size:11px;color:var(--text-grey)">${product?.classification||'<span class="td-dash">—</span>'}</td>
+      <td style="font-size:11px;color:var(--text-dim);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${product?.supplier||'<span class="td-dash">—</span>'}</td>
+      <td>
+        ${parsed.expiry
+          ? `<div class="tbl-exp ${expTblCls} ${exp?.blink?'exp-blink':''}">${parsed.expiry}</div>
+             ${exp?`<div class="tbl-exp-sub ${expTblCls}">${days<0?'EXPIRED':days+'d'}</div>`:''}`
+          : `<span class="td-dash">—</span>`}
+      </td>
+      <td class="td-mono">${parsed.batch||'<span class="td-dash">—</span>'}</td>
+      <td>
+        ${product
+          ? `<span class="tbl-ret ${isReturn?'tbl-ret-yes':'tbl-ret-no'}">${isReturn?'↩ YES':'⊘ NO'}</span>`
+          : `<span class="td-dash">—</span>`}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openCard(id){
+  const rec=scans.find(s=>s.id===id);
+  if(rec){renderCard(rec);window.scrollTo({top:0,behavior:'smooth'});}
+}
+
+/* ═══════════════════════════════════════
+   STATS
+═══════════════════════════════════════ */
+function renderStats(){
+  const badge=document.getElementById('statsBadge');
+  const expBtn=document.getElementById('exportBtn');
+  const strip=document.getElementById('statsStrip');
+  if(!scans.length){
+    badge.style.display='none'; expBtn.style.display='none'; strip.style.display='none'; return;
+  }
+  badge.style.display='inline-block'; expBtn.style.display='inline-block';
+  badge.textContent=`${scans.length} scanned`;
+  const found=scans.filter(s=>s.product).length;
+  const missing=scans.length-found;
+  const expiring=scans.filter(s=>{const e=expStatus(s.parsed.expiryDate);return e&&e.days<90;}).length;
+  strip.style.display='flex';
+  strip.innerHTML=[
+    `<span>✓ <strong style="color:var(--text-bright-green)">${found}</strong> matched</span>`,
+    missing?`<span>⚠ <strong style="color:var(--accent-red)">${missing}</strong> not found</span>`:'',
+    expiring?`<span>⏱ <strong style="color:var(--accent-yellow)">${expiring}</strong> expiring soon</span>`:'',
+  ].filter(Boolean).join('');
+}
+
+/* ═══════════════════════════════════════
+   ERROR / TOAST
+═══════════════════════════════════════ */
+let errT;
+function showErr(msg){
+  const b=document.getElementById('errBar');
+  document.getElementById('errMsg').textContent=msg;
+  b.style.display='flex'; clearTimeout(errT);
+  errT=setTimeout(()=>b.style.display='none',4500);
+}
+function clearErr(){document.getElementById('errBar').style.display='none';}
+
+function showToast(msg,ok=true){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${ok?'toast-ok':'toast-err'}`;
+  t.style.display='block';
+  setTimeout(()=>t.style.display='none',2400);
+}
+
+/* ═══════════════════════════════════════
+   CSV EXPORT
+═══════════════════════════════════════ */
+function exportCSV(){
+  if(!scans.length){showToast('Nothing to export yet',false);return;}
+  const H=['#','Time','Raw Input','Mode','RMS','GTIN','Description','Brand','Classification','Supplier','Batch','Serial','Expiry','Prod Date','Return Status'];
+  const rows=scans.map((s,i)=>[
+    scans.length-i, new Date(s.ts).toLocaleString(), s.raw, s.parsed._mode||'',
+    s.product?.rms||'', s.product?.gtin||s.parsed.gtin||'',
+    s.product?.description||'NOT FOUND', s.product?.brand||'', s.product?.classification||'',
+    s.product?.supplier||'', s.parsed.batch||'', s.parsed.serial||'',
+    s.parsed.expiry||'', s.parsed.prodDate||'', s.product?.returnStatus||'',
+  ].map(c=>`"${String(c).replace(/"/g,'""')}"`).join(','));
+  const blob=new Blob([[H.join(','),...rows].join('\n')],{type:'text/csv'});
+  Object.assign(document.createElement('a'),{
+    href:URL.createObjectURL(blob),
+    download:`pharmastock-${new Date().toISOString().slice(0,10)}.csv`
+  }).click();
+  showToast(`Exported ${scans.length} records ✓`);
+}
+
+/* ═══════════════════════════════════════
+   PWA: SERVICE WORKER + INSTALL
+═══════════════════════════════════════ */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js')
+    .then(()=>console.log('✓ SW registered'))
+    .catch(e=>console.warn('SW error',e));
+}
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault(); deferredPrompt=e;
+  setTimeout(()=>document.getElementById('installBanner').style.display='flex', 2500);
+});
+document.getElementById('installBtn').addEventListener('click', async ()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const {outcome}=await deferredPrompt.userChoice;
+  deferredPrompt=null;
+  document.getElementById('installBanner').style.display='none';
+  if(outcome==='accepted') showToast('PharmaStock Pro installed ✓');
+});
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('installBanner').style.display='none';
+  showToast('Installed ✓');
+});
+</script>
+</body>
+</html>
